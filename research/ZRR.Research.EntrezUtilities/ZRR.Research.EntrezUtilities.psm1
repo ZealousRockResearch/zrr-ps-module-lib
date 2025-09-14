@@ -12,7 +12,7 @@
 .NOTES
     Module: ZRR.Research.EntrezUtilities
     Author: Zealous Rock Research
-    Version: 1.0.0
+    Version: 0.1.0
     Generated: 2025-09-13
 #>
 

@@ -21,7 +21,7 @@
       "modules": [
         {
           "name": "ZRR.Research.EntrezUtilities",
-          "version": "1.0.0",
+          "version": "0.1.0",
           "description": "NCBI Entrez Programming Utilities API wrapper with enterprise features",
           "path": "research/ZRR.Research.EntrezUtilities",
           "author": "Zealous Rock Research",
