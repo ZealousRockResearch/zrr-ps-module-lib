@@ -1,0 +1,126 @@
+{
+  "registry": {
+    "name": "ZRR PowerShell Module Library",
+    "description": "Centralized registry for ZRR enterprise PowerShell modules",
+    "version": "1.0.0",
+    "lastUpdated": "2025-09-13T20:30:00Z",
+    "repository": "https://github.com/zealous-rock-research/zrr-ps-module-lib",
+    "maintainer": "Zealous Rock Research"
+  },
+  "categories": {
+    "infrastructure": {
+      "description": "Infrastructure management and automation modules",
+      "modules": []
+    },
+    "security": {
+      "description": "Security and compliance modules",
+      "modules": []
+    },
+    "research": {
+      "description": "Research-specific modules and tools",
+      "modules": [
+        {
+          "name": "ZRR.Research.EntrezUtilities",
+          "version": "1.0.0",
+          "description": "NCBI Entrez Programming Utilities API wrapper with enterprise features",
+          "path": "research/ZRR.Research.EntrezUtilities",
+          "author": "Zealous Rock Research",
+          "tags": ["NCBI", "Entrez", "Bioinformatics", "PubMed", "Research", "API"],
+          "compatibility": {
+            "powerShellVersion": "5.1+",
+            "platforms": ["Windows", "Linux", "macOS"],
+            "editions": ["Desktop", "Core"]
+          },
+          "dependencies": [
+            {
+              "name": "PSFramework",
+              "version": "1.7.249+"
+            }
+          ],
+          "functions": {
+            "public": [
+              "Search-EntrezDatabase",
+              "Get-EntrezDocumentSummary",
+              "Get-EntrezDataRecord",
+              "Get-EntrezPubMedArticle",
+              "Get-EntrezProteinSequence",
+              "Get-EntrezNucleotideSequence",
+              "Search-EntrezAdvanced",
+              "Export-EntrezResults",
+              "Clear-EntrezSession",
+              "Set-EntrezApiKey",
+              "Get-EntrezSession"
+            ],
+            "aliases": [
+              "Search-Entrez",
+              "Get-EntrezSummary",
+              "Get-EntrezData"
+            ]
+          },
+          "features": [
+            "Enterprise-grade logging with PSFramework",
+            "Comprehensive error handling and validation",
+            "Session management with history server support",
+            "Batch processing for large datasets",
+            "Multi-format export functionality",
+            "Cross-platform compatibility",
+            "Backward compatibility with original EntrezUtilities module"
+          ],
+          "status": "active",
+          "created": "2025-09-13T20:30:00Z",
+          "lastModified": "2025-09-13T20:30:00Z",
+          "documentation": {
+            "readme": "research/ZRR.Research.EntrezUtilities/Docs/README.md",
+            "online": "https://docs.zealousrock.dev/powershell/ZRR.Research.EntrezUtilities"
+          },
+          "testing": {
+            "framework": "Pester",
+            "coverage": ">80%",
+            "cicd": true
+          },
+          "publishing": {
+            "powerShellGallery": {
+              "ready": true,
+              "name": "ZRR.Research.EntrezUtilities",
+              "verified": false
+            }
+          }
+        }
+      ]
+    },
+    "automation": {
+      "description": "General automation and workflow modules",
+      "modules": []
+    },
+    "utility": {
+      "description": "Utility and helper modules",
+      "modules": []
+    }
+  },
+  "statistics": {
+    "totalModules": 1,
+    "activeModules": 1,
+    "publishedModules": 0,
+    "averageRating": 0,
+    "totalDownloads": 0
+  },
+  "standards": {
+    "version": "1.0.0",
+    "namingConvention": "ZRR.{Category}.{Purpose}",
+    "requiredFiles": [
+      "{module-name}.psd1",
+      "{module-name}.psm1",
+      "Public/",
+      "Private/",
+      "Tests/",
+      "Docs/README.md"
+    ],
+    "qualityGates": [
+      "PSScriptAnalyzer compliance",
+      "Pester test coverage >80%",
+      "Complete documentation",
+      "Cross-platform compatibility",
+      "PowerShell Gallery compliance"
+    ]
+  }
+}

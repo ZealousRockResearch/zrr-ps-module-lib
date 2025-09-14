@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        psversion: ['5.1', '7.x']
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup PowerShell ${{ matrix.psversion }}
+      uses: actions/setup-powershell@v1
+      with:
+        powershell-version: ${{ matrix.psversion }}
+
+    - name: Install dependencies
+      shell: pwsh
+      run: |
+        Install-Module -Name PSScriptAnalyzer, Pester, PlatyPS -Force -Scope CurrentUser
+
+    - name: Run PSScriptAnalyzer
+      shell: pwsh
+      run: |
+        Invoke-ScriptAnalyzer -Path ./research/ZRR.Research.EntrezUtilities -Recurse -Settings PSGallery -ReportSummary
+
+    - name: Test module manifest
+      shell: pwsh
+      run: |
+        Test-ModuleManifest -Path ./research/ZRR.Research.EntrezUtilities/ZRR.Research.EntrezUtilities.psd1
+
+    - name: Run Pester tests
+      shell: pwsh
+      run: |
+        $Config = New-PesterConfiguration
+        $Config.Run.Path = './research/ZRR.Research.EntrezUtilities/Tests'
+        $Config.CodeCoverage.Enabled = $true
+        $Config.CodeCoverage.Path = './research/ZRR.Research.EntrezUtilities/Public/*.ps1'
+        $Config.TestResult.Enabled = $true
+        $Config.TestResult.OutputPath = 'TestResults.xml'
+        Invoke-Pester -Configuration $Config
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.psversion }}
+        path: TestResults.xml

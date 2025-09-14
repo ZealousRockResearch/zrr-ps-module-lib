@@ -1,0 +1,38 @@
+# PowerShell
+*.ps1xml
+TestResults/
+TestResults.xml
+
+# Logs
+*.log
+Logs/
+
+# Build artifacts
+Build/Output/
+*.nupkg
+*.zip
+
+# IDE
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# PowerShell Gallery
+*.nuspec
+
+# Local test files
+test-*
+debug-*
+scratch.*
