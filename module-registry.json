@@ -94,15 +94,111 @@
     },
     "utility": {
       "description": "Utility and helper modules",
-      "modules": []
+      "modules": [
+        {
+          "name": "ZRR.Terraform.Wrapper",
+          "version": "0.1.0",
+          "description": "Enterprise-grade Terraform workflow automation and management wrapper with advanced pipeline integration, state management, and cross-platform deployment capabilities",
+          "path": "utility/ZRR.Terraform.Wrapper",
+          "author": "Zealous Rock Research",
+          "tags": ["Terraform", "Infrastructure", "IaC", "DevOps", "Automation", "Enterprise", "Utility"],
+          "compatibility": {
+            "powerShellVersion": "5.1+",
+            "terraformVersion": "0.12+",
+            "platforms": ["Windows", "Linux", "macOS"],
+            "editions": ["Desktop", "Core"]
+          },
+          "dependencies": [],
+          "functions": {
+            "public": [
+              "Invoke-TerraformInit",
+              "Invoke-TerraformPlan",
+              "Invoke-TerraformApply",
+              "Invoke-TerraformDestroy",
+              "Get-TerraformState",
+              "Set-TerraformWorkspace",
+              "New-TerraformWorkspace",
+              "Remove-TerraformWorkspace",
+              "Test-TerraformConfiguration",
+              "Get-TerraformOutput",
+              "Import-TerraformResource",
+              "Export-TerraformState",
+              "Backup-TerraformState",
+              "Restore-TerraformState",
+              "Invoke-TerraformValidate",
+              "Format-TerraformConfiguration",
+              "Get-TerraformProvider",
+              "Update-TerraformProvider",
+              "New-TerraformModule",
+              "Test-TerraformCompliance",
+              "Invoke-TerraformRefresh",
+              "Get-TerraformResource",
+              "Move-TerraformResource",
+              "Remove-TerraformResource",
+              "Protect-TerraformResource",
+              "Unprotect-TerraformResource"
+            ],
+            "aliases": [
+              "tf-init",
+              "tf-plan",
+              "tf-apply",
+              "tf-destroy",
+              "tf-state",
+              "tf-workspace",
+              "tf-validate",
+              "tf-fmt",
+              "tf-refresh",
+              "tf-import"
+            ]
+          },
+          "features": [
+            "Complete Terraform command wrapper functions",
+            "Advanced state management capabilities",
+            "Workspace management and switching",
+            "Automated backup and restore functionality",
+            "Compliance testing integration",
+            "Comprehensive error handling and logging",
+            "Support for Terraform 0.12+ and 1.x",
+            "Cross-platform compatibility (Windows, Linux, macOS)",
+            "Pipeline-friendly output formatting",
+            "Enterprise-grade security practices"
+          ],
+          "status": "active",
+          "created": "2025-01-13T00:00:00Z",
+          "lastModified": "2025-01-13T00:00:00Z",
+          "documentation": {
+            "readme": "utility/ZRR.Terraform.Wrapper/Docs/README.md",
+            "online": "https://docs.zealousrock.dev/powershell/ZRR.Terraform.Wrapper"
+          },
+          "testing": {
+            "framework": "Pester",
+            "coverage": ">80%",
+            "cicd": true
+          },
+          "publishing": {
+            "powerShellGallery": {
+              "ready": true,
+              "name": "ZRR.Terraform.Wrapper",
+              "verified": false
+            }
+          }
+        }
+      ]
     }
   },
   "statistics": {
-    "totalModules": 1,
-    "activeModules": 1,
+    "totalModules": 2,
+    "activeModules": 2,
     "publishedModules": 0,
     "averageRating": 0,
-    "totalDownloads": 0
+    "totalDownloads": 0,
+    "byCategory": {
+      "infrastructure": 0,
+      "security": 0,
+      "research": 1,
+      "automation": 0,
+      "utility": 1
+    }
   },
   "standards": {
     "version": "1.0.0",

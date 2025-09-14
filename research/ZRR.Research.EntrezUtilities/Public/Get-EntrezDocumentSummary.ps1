@@ -178,40 +178,71 @@ function Get-EntrezDocumentSummary {
                     # Parse JSON and extract summaries
                     if ($result.result) {
                         foreach ($uid in $result.result.uids) {
-                            [PSCustomObject]@{
+                            Write-Output ([PSCustomObject]@{
                                 Database = $Database
                                 UID = $uid
                                 Summary = $result.result.$uid
                                 Retrieved = Get-Date
-                            }
+                            })
                         }
                     }
                 }
                 elseif ($RetMode -eq 'xml' -and $result) {
                     # Parse XML and extract summaries
                     if ($result.eSummaryResult) {
-                        foreach ($docSum in $result.eSummaryResult.DocSum) {
-                            $summaryData = @{}
-                            foreach ($item in $docSum.Item) {
-                                $summaryData[$item.Name] = $item.InnerText
-                            }
+                        # Version 2.0 structure
+                        if ($result.eSummaryResult.DocumentSummarySet) {
+                            foreach ($docSum in $result.eSummaryResult.DocumentSummarySet.DocumentSummary) {
+                                $summaryData = @{
+                                    Title = $docSum.Title
+                                    Abstract = $docSum | Select-Object -ExpandProperty Abstract -ErrorAction SilentlyContinue
+                                    Authors = $docSum.Authors
+                                    Journal = $docSum.Source
+                                    PubDate = $docSum.PubDate
+                                    DOI = $docSum | Select-Object -ExpandProperty DOI -ErrorAction SilentlyContinue
+                                    PMID = $docSum.uid
+                                }
 
-                            [PSCustomObject]@{
-                                Database = $Database
-                                UID = $docSum.Id
-                                Summary = $summaryData
-                                Retrieved = Get-Date
+                                # Add all other properties
+                                foreach ($prop in $docSum.PSObject.Properties) {
+                                    if ($prop.Name -notin @('uid', 'Title')) {
+                                        $summaryData[$prop.Name] = $prop.Value
+                                    }
+                                }
+
+                                Write-Output ([PSCustomObject]@{
+                                    Database = $Database
+                                    UID = $docSum.uid
+                                    Summary = $summaryData
+                                    Retrieved = Get-Date
+                                })
+                            }
+                        }
+                        # Version 1.0 structure (fallback)
+                        elseif ($result.eSummaryResult.DocSum) {
+                            foreach ($docSum in $result.eSummaryResult.DocSum) {
+                                $summaryData = @{}
+                                foreach ($item in $docSum.Item) {
+                                    $summaryData[$item.Name] = $item.InnerText
+                                }
+
+                                Write-Output ([PSCustomObject]@{
+                                    Database = $Database
+                                    UID = $docSum.Id
+                                    Summary = $summaryData
+                                    Retrieved = Get-Date
+                                })
                             }
                         }
                     }
                 }
                 else {
                     # Raw text or other formats
-                    [PSCustomObject]@{
+                    Write-Output ([PSCustomObject]@{
                         Database = $Database
                         RawResult = $result
                         Retrieved = Get-Date
-                    }
+                    })
                 }
             }
         }

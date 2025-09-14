@@ -112,7 +112,7 @@ foreach ($Class in $ClassFiles) {
 }
 
 # Create aliases for backward compatibility
-New-Alias -Name 'Search-Entrez' -Value 'Search-EntrezDatabase' -Force
+# Removed Search-Entrez alias as we now have a dedicated Search-Entrez function
 New-Alias -Name 'Get-EntrezSummary' -Value 'Get-EntrezDocumentSummary' -Force
 New-Alias -Name 'Get-EntrezData' -Value 'Get-EntrezDataRecord' -Force
 
@@ -129,7 +129,6 @@ $OnRemove = {
     }
 
     # Remove aliases
-    Remove-Alias -Name 'Search-Entrez' -Force -ErrorAction SilentlyContinue
     Remove-Alias -Name 'Get-EntrezSummary' -Force -ErrorAction SilentlyContinue
     Remove-Alias -Name 'Get-EntrezData' -Force -ErrorAction SilentlyContinue
 }
@@ -138,7 +137,7 @@ $OnRemove = {
 $ExecutionContext.SessionState.Module.OnRemove += $OnRemove
 
 # Export public functions
-Export-ModuleMember -Function $ExportFunctions -Alias @('Search-Entrez', 'Get-EntrezSummary', 'Get-EntrezData')
+Export-ModuleMember -Function $ExportFunctions -Alias @('Get-EntrezSummary', 'Get-EntrezData')
 
 $LoadedFunctionCount = $ExportFunctions.Count
 Write-PSFMessage -Level Host -Message "ZRR.Research.EntrezUtilities module loaded successfully. Functions: $LoadedFunctionCount"

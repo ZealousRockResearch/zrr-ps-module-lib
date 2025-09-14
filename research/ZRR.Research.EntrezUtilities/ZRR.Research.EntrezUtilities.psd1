@@ -22,6 +22,7 @@
 
     # Functions to export - Auto-populated from Public/ folder
     FunctionsToExport = @(
+        'Search-Entrez',
         'Search-EntrezDatabase',
         'Get-EntrezDocumentSummary',
         'Get-EntrezDataRecord',
@@ -40,7 +41,6 @@
 
     # Aliases to export
     AliasesToExport = @(
-        'Search-Entrez',
         'Get-EntrezSummary',
         'Get-EntrezData'
     )
