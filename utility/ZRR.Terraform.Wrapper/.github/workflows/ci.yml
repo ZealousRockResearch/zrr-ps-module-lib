@@ -1,0 +1,469 @@
+name: CI - ZRR.Terraform.Wrapper
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'utility/ZRR.Terraform.Wrapper/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'utility/ZRR.Terraform.Wrapper/**'
+
+env:
+  MODULE_PATH: utility/ZRR.Terraform.Wrapper
+  MODULE_NAME: ZRR.Terraform.Wrapper
+
+jobs:
+  test:
+    name: Test Module
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        powershell-version: ['5.1', '7.x']
+        terraform-version: ['1.0.0', '1.5.0', 'latest']
+        exclude:
+          # PowerShell 5.1 only runs on Windows
+          - os: ubuntu-latest
+            powershell-version: '5.1'
+          - os: macos-latest
+            powershell-version: '5.1'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PowerShell ${{ matrix.powershell-version }}
+      uses: actions/setup-powershell@v1
+      with:
+        powershell-version: ${{ matrix.powershell-version }}
+
+    - name: Setup Terraform ${{ matrix.terraform-version }}
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ matrix.terraform-version }}
+        terraform_wrapper: false
+
+    - name: Verify Terraform installation
+      shell: pwsh
+      run: |
+        Write-Host "Terraform version:"
+        terraform version
+        Write-Host "PowerShell version:"
+        $PSVersionTable
+
+    - name: Install required PowerShell modules
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        Install-Module -Name PSScriptAnalyzer, Pester, PlatyPS -Force -Scope CurrentUser
+
+        # Try to install PSFramework, but don't fail if it's not available
+        try {
+          Install-Module -Name PSFramework -Force -Scope CurrentUser -ErrorAction Stop
+          Write-Host "PSFramework installed successfully"
+        }
+        catch {
+          Write-Warning "PSFramework not available, tests will use fallback logging"
+        }
+
+    - name: Import module
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Importing module from: $PWD"
+        Import-Module .\${{ env.MODULE_NAME }}.psd1 -Force -ErrorAction Stop
+        Write-Host "Module imported successfully"
+
+    - name: Run PSScriptAnalyzer
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Running PSScriptAnalyzer..."
+        $AnalyzerResults = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSGallery -ReportSummary
+
+        if ($AnalyzerResults) {
+          Write-Host "PSScriptAnalyzer found $($AnalyzerResults.Count) issues:" -ForegroundColor Yellow
+          $AnalyzerResults | Format-Table -AutoSize
+
+          # Fail on Error level issues, warn on others
+          $ErrorIssues = $AnalyzerResults | Where-Object Severity -eq 'Error'
+          if ($ErrorIssues) {
+            Write-Error "PSScriptAnalyzer found $($ErrorIssues.Count) error-level issues"
+            exit 1
+          }
+        } else {
+          Write-Host "✓ PSScriptAnalyzer found no issues" -ForegroundColor Green
+        }
+
+    - name: Test module manifest
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Testing module manifest..."
+        $ManifestPath = ".\${{ env.MODULE_NAME }}.psd1"
+
+        if (-not (Test-Path $ManifestPath)) {
+          throw "Module manifest not found: $ManifestPath"
+        }
+
+        $Manifest = Test-ModuleManifest -Path $ManifestPath -ErrorAction Stop
+        Write-Host "✓ Module manifest is valid" -ForegroundColor Green
+        Write-Host "  Module: $($Manifest.Name)"
+        Write-Host "  Version: $($Manifest.Version)"
+        Write-Host "  Author: $($Manifest.Author)"
+        Write-Host "  Functions: $($Manifest.ExportedFunctions.Count)"
+
+    - name: Run Pester tests
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Running Pester tests..."
+
+        # Configure Pester
+        $Config = New-PesterConfiguration
+        $Config.Run.Path = './Tests'
+        $Config.Run.Exit = $true
+        $Config.CodeCoverage.Enabled = $true
+        $Config.CodeCoverage.Path = './Public/*.ps1', './Private/*.ps1'
+        $Config.CodeCoverage.OutputFormat = 'JaCoCo'
+        $Config.CodeCoverage.OutputPath = './coverage.xml'
+        $Config.TestResult.Enabled = $true
+        $Config.TestResult.OutputFormat = 'NUnitXml'
+        $Config.TestResult.OutputPath = './TestResults.xml'
+        $Config.Output.Verbosity = 'Detailed'
+
+        # Run tests
+        $TestResults = Invoke-Pester -Configuration $Config
+
+        Write-Host "Test Results Summary:" -ForegroundColor Cyan
+        Write-Host "  Total: $($TestResults.TotalCount)"
+        Write-Host "  Passed: $($TestResults.PassedCount)" -ForegroundColor Green
+        Write-Host "  Failed: $($TestResults.FailedCount)" -ForegroundColor Red
+        Write-Host "  Skipped: $($TestResults.SkippedCount)" -ForegroundColor Yellow
+
+        if ($TestResults.CodeCoverage) {
+          $CoveragePercent = [math]::Round($TestResults.CodeCoverage.CoveragePercent, 2)
+          Write-Host "  Code Coverage: $CoveragePercent%" -ForegroundColor Blue
+        }
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}-ps${{ matrix.powershell-version }}-tf${{ matrix.terraform-version }}
+        path: |
+          ${{ env.MODULE_PATH }}/TestResults.xml
+          ${{ env.MODULE_PATH }}/coverage.xml
+
+    - name: Test module functions
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Testing core module functions..."
+        Import-Module .\${{ env.MODULE_NAME }}.psd1 -Force
+
+        # Test basic function availability
+        $RequiredFunctions = @(
+          'Invoke-TerraformInit',
+          'Invoke-TerraformPlan',
+          'Invoke-TerraformApply',
+          'Get-TerraformState'
+        )
+
+        foreach ($Function in $RequiredFunctions) {
+          if (Get-Command $Function -ErrorAction SilentlyContinue) {
+            Write-Host "✓ $Function available" -ForegroundColor Green
+          } else {
+            Write-Error "✗ $Function not available"
+          }
+        }
+
+        # Test aliases
+        $RequiredAliases = @('tf-init', 'tf-plan', 'tf-apply', 'tf-state')
+        foreach ($Alias in $RequiredAliases) {
+          if (Get-Alias $Alias -ErrorAction SilentlyContinue) {
+            Write-Host "✓ Alias $Alias available" -ForegroundColor Green
+          } else {
+            Write-Warning "Alias $Alias not available"
+          }
+        }
+
+    - name: Test help documentation
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Testing function documentation..."
+        Import-Module .\${{ env.MODULE_NAME }}.psd1 -Force
+
+        $Functions = Get-Command -Module ${{ env.MODULE_NAME }} -CommandType Function
+        $DocumentationIssues = 0
+
+        foreach ($Function in $Functions) {
+          $Help = Get-Help $Function.Name -ErrorAction SilentlyContinue
+
+          if (-not $Help.Synopsis -or $Help.Synopsis -eq $Function.Name) {
+            Write-Warning "Missing or default synopsis for: $($Function.Name)"
+            $DocumentationIssues++
+          }
+
+          if (-not $Help.Description) {
+            Write-Warning "Missing description for: $($Function.Name)"
+            $DocumentationIssues++
+          }
+
+          if (-not $Help.Examples) {
+            Write-Warning "Missing examples for: $($Function.Name)"
+            $DocumentationIssues++
+          }
+        }
+
+        if ($DocumentationIssues -eq 0) {
+          Write-Host "✓ All functions have proper documentation" -ForegroundColor Green
+        } else {
+          Write-Warning "Found $DocumentationIssues documentation issues"
+        }
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PowerShell
+      uses: actions/setup-powershell@v1
+
+    - name: Install PSScriptAnalyzer
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+    - name: Run security analysis
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Running security analysis..."
+
+        # Security-focused PSScriptAnalyzer rules
+        $SecurityRules = @(
+          'PSAvoidUsingCmdletAliases',
+          'PSAvoidUsingPlainTextForPassword',
+          'PSAvoidUsingConvertToSecureStringWithPlainText',
+          'PSAvoidUsingInvokeExpression',
+          'PSAvoidUsingPositionalParameters',
+          'PSUseDeclaredVarsMoreThanAssignments'
+        )
+
+        $SecurityResults = Invoke-ScriptAnalyzer -Path . -Recurse -IncludeRule $SecurityRules
+
+        if ($SecurityResults) {
+          Write-Host "Security issues found:" -ForegroundColor Red
+          $SecurityResults | Format-Table -AutoSize
+
+          # Fail on any security issues
+          exit 1
+        } else {
+          Write-Host "✓ No security issues found" -ForegroundColor Green
+        }
+
+    - name: Check for sensitive data
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Checking for sensitive data patterns..."
+
+        $SensitivePatterns = @(
+          'password\s*=\s*["\'][^"\']*["\']',
+          'secret\s*=\s*["\'][^"\']*["\']',
+          'key\s*=\s*["\'][^"\']*["\']',
+          'token\s*=\s*["\'][^"\']*["\']',
+          'api[_-]?key\s*=\s*["\'][^"\']*["\']'
+        )
+
+        $SensitiveFound = $false
+
+        Get-ChildItem -Recurse -Include "*.ps1", "*.psm1", "*.psd1" | ForEach-Object {
+          $Content = Get-Content $_.FullName -Raw
+          foreach ($Pattern in $SensitivePatterns) {
+            if ($Content -match $Pattern) {
+              Write-Warning "Potential sensitive data in $($_.Name): $($Matches[0])"
+              $SensitiveFound = $true
+            }
+          }
+        }
+
+        if ($SensitiveFound) {
+          Write-Error "Sensitive data patterns detected"
+          exit 1
+        } else {
+          Write-Host "✓ No sensitive data patterns found" -ForegroundColor Green
+        }
+
+  build:
+    name: Build Module
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PowerShell
+      uses: actions/setup-powershell@v1
+
+    - name: Install build dependencies
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        Install-Module -Name PlatyPS -Force -Scope CurrentUser
+
+    - name: Build documentation
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Building documentation..."
+        Import-Module .\${{ env.MODULE_NAME }}.psd1 -Force
+
+        # Create function documentation
+        if (-not (Test-Path './Docs/Functions')) {
+          New-Item -Path './Docs/Functions' -ItemType Directory -Force
+        }
+
+        try {
+          New-MarkdownHelp -Module ${{ env.MODULE_NAME }} -OutputFolder './Docs/Functions' -Force
+          Write-Host "✓ Function documentation generated" -ForegroundColor Green
+        }
+        catch {
+          Write-Warning "Documentation generation failed: $_"
+        }
+
+    - name: Create build artifact
+      shell: pwsh
+      working-directory: ${{ env.MODULE_PATH }}
+      run: |
+        Write-Host "Creating build artifact..."
+
+        # Get module version
+        $Manifest = Import-PowerShellDataFile -Path ".\${{ env.MODULE_NAME }}.psd1"
+        $Version = $Manifest.ModuleVersion
+
+        # Create build directory
+        $BuildDir = "./build/${{ env.MODULE_NAME }}"
+        if (Test-Path $BuildDir) {
+          Remove-Item $BuildDir -Recurse -Force
+        }
+        New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
+
+        # Copy module files
+        $FilesToCopy = @(
+          "${{ env.MODULE_NAME }}.psd1",
+          "${{ env.MODULE_NAME }}.psm1",
+          "Public",
+          "Private",
+          "Classes",
+          "Data",
+          "Docs"
+        )
+
+        foreach ($Item in $FilesToCopy) {
+          if (Test-Path $Item) {
+            Copy-Item -Path $Item -Destination $BuildDir -Recurse -Force
+            Write-Host "✓ Copied $Item"
+          }
+        }
+
+        Write-Host "Build artifact created: $BuildDir"
+        Write-Host "Module version: $Version"
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.MODULE_NAME }}-build
+        path: ${{ env.MODULE_PATH }}/build/
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PowerShell
+      uses: actions/setup-powershell@v1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: latest
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ env.MODULE_NAME }}-build
+        path: ./build/
+
+    - name: Run integration tests
+      shell: pwsh
+      run: |
+        Write-Host "Running integration tests..."
+
+        # Import built module
+        Import-Module "./build/${{ env.MODULE_NAME }}" -Force
+
+        # Create test Terraform configuration
+        $TestDir = "./integration-test"
+        New-Item -Path $TestDir -ItemType Directory -Force | Out-Null
+
+        $TestConfig = @'
+        terraform {
+          required_providers {
+            local = {
+              source  = "hashicorp/local"
+              version = "~> 2.0"
+            }
+          }
+        }
+
+        resource "local_file" "test" {
+          content  = "Integration test file"
+          filename = "${path.module}/test.txt"
+        }
+
+        output "test_file" {
+          value = local_file.test.filename
+        }
+        '@
+
+        Set-Content -Path "$TestDir/main.tf" -Value $TestConfig
+
+        try {
+          # Test initialization
+          $InitResult = Invoke-TerraformInit -Path $TestDir
+          if (-not $InitResult.Success) {
+            throw "Integration test failed: Init failed"
+          }
+          Write-Host "✓ Integration test: Init successful"
+
+          # Test plan
+          $PlanResult = Invoke-TerraformPlan -Path $TestDir
+          if (-not $PlanResult.Success) {
+            throw "Integration test failed: Plan failed"
+          }
+          Write-Host "✓ Integration test: Plan successful"
+
+          Write-Host "✓ Integration tests passed" -ForegroundColor Green
+        }
+        catch {
+          Write-Error "Integration test failed: $_"
+          exit 1
+        }
+        finally {
+          # Cleanup
+          Remove-Item $TestDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
