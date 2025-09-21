@@ -161,16 +161,55 @@ function Search-Entrez {
             $totalFound = $searchResults.eSearchResult.Count
             Write-Verbose "Found $totalFound total results, retrieving $($ids.Count)"
 
-            # Step 2: Get document summaries
+            # Step 2: Get document summaries (optional - will continue with IDs only if this fails)
             Write-Verbose "Retrieving document summaries..."
             $summaries = Get-EntrezDocumentSummary -Database $Database -Id $ids -RetMode 'xml'
 
             if (-not $summaries) {
                 Write-Warning "Failed to retrieve summaries for the search results"
-                return
+                Write-Verbose "Continuing with ID-only results..."
+
+                # Fallback: Create basic results with just IDs
+                $results = foreach ($id in $ids) {
+                    $obj = [PSCustomObject]@{
+                        ID = $id
+                    }
+
+                    if ($IncludeTitles) {
+                        $obj | Add-Member -NotePropertyName 'Title' -NotePropertyValue 'Title unavailable (summary retrieval failed)'
+                    }
+
+                    if ($IncludeSummary) {
+                        $obj | Add-Member -NotePropertyName 'Abstract' -NotePropertyValue 'Abstract unavailable (summary retrieval failed)'
+                    }
+
+                    if ($IncludeAuthors) {
+                        $obj | Add-Member -NotePropertyName 'Authors' -NotePropertyValue 'Authors unavailable'
+                    }
+
+                    if ($IncludePublicationDate) {
+                        $obj | Add-Member -NotePropertyName 'PublicationDate' -NotePropertyValue 'Date unavailable'
+                    }
+
+                    if ($IncludeDOI) {
+                        $obj | Add-Member -NotePropertyName 'DOI' -NotePropertyValue 'DOI unavailable'
+                    }
+
+                    if ($IncludeJournal) {
+                        $obj | Add-Member -NotePropertyName 'Journal' -NotePropertyValue 'Journal unavailable'
+                    }
+
+                    if ($IncludeFullDoc) {
+                        $obj | Add-Member -NotePropertyName 'FullDocumentURL' -NotePropertyValue 'URL unavailable'
+                    }
+
+                    $obj
+                }
+
+                return $results
             }
 
-            # Step 3: Build custom objects with requested fields
+            # Step 3: Build custom objects with requested fields using summaries
             $results = foreach ($summary in $summaries) {
                 $obj = [PSCustomObject]@{
                     ID = $summary.UID
