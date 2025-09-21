@@ -200,7 +200,7 @@ function Get-EntrezDocumentSummary {
                                     Journal = $docSum.Source
                                     PubDate = $docSum.PubDate
                                     DOI = $docSum | Select-Object -ExpandProperty DOI -ErrorAction SilentlyContinue
-                                    PMID = $docSum.uid
+                                    PMID = $docSum.UID
                                 }
 
                                 # Add all other properties
@@ -212,7 +212,7 @@ function Get-EntrezDocumentSummary {
 
                                 Write-Output ([PSCustomObject]@{
                                     Database = $Database
-                                    UID = $docSum.uid
+                                    UID = $docSum.UID
                                     Summary = $summaryData
                                     Retrieved = Get-Date
                                 })
